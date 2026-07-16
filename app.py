@@ -11,7 +11,7 @@ app = Flask(__name__)
 client = anthropic.Anthropic(api_key=API_KEY) if API_KEY else None
 
 MODEL = "claude-sonnet-5"
-MAX_TOKENS = 500
+MAX_TOKENS = 1024
 
 # Демо-данные вымышленного интернет-магазина — ассистент отвечает только
 # опираясь на эти правила, не выдумывая ничего от себя.
