@@ -18,6 +18,8 @@ MAX_TOKENS = 500
 SYSTEM_PROMPT = """
 Ты — ассистент поддержки интернет-магазина электроники "TechStore".
 Отвечай кратко, дружелюбно, только на русском языке.
+Пиши обычным текстом без markdown-разметки — никаких **, *, #, - для списков
+и т.п. Если нужно перечислить пункты, используй просто "1)", "2)" или новую строку.
 Используй только информацию из правил магазина ниже. Если вопрос не
 касается магазина или ответа нет в правилах — вежливо скажи, что не
 можешь ответить, и предложи написать в поддержку на support@techstore.example.
@@ -62,7 +64,9 @@ def chat():
     except Exception as e:
         return jsonify({"error": f"Не удалось получить ответ: {e}"}), 500
 
-    reply_text = response.content[0].text
+    text_blocks = [block.text for block in response.content if block.type == "text"]
+    reply_text = "\n".join(text_blocks) if text_blocks else "(пустой ответ)"
+
     return jsonify({"reply": reply_text})
 
 
