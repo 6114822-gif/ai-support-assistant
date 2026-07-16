@@ -138,26 +138,32 @@ GREETING_FOLLOWUP = (
     "здоровайся и не благодари за обращение снова, отвечай сразу по сути."
 )
 
-CLOSING_FIRST_MESSAGE = """ОБЯЗАТЕЛЬНО в конце ответа про возврат, обмен, гарантию или недостатки
-товара добавляй ОБЕ фразы, в этом порядке (сначала дисклеймер, потом контакт
-поддержки — контакт всегда последним):
-1) "Это общая информация, не юридическая консультация по вашему конкретному
-случаю. Для сложных или спорных ситуаций рекомендуем обратиться к юристу."
-2) "Обратитесь в поддержку — support@techstore.example — там оформят
-возврат/замену и уточнят детали."
+CLOSING_NOT_SHOWN_YET = """Дисклеймер и контакт поддержки в этом разговоре ЕЩЁ НЕ показывались.
+Смотри, какой это ответ:
+- Если ты даёшь ОКОНЧАТЕЛЬНЫЙ ответ по существу про возврат, обмен, гарантию
+  или недостатки товара (называешь конкретное правило а/б/в/г, а не просто
+  уточняющий вопрос) — ОБЯЗАТЕЛЬНО добавь в конце ОБЕ фразы по порядку:
+  1) "Это общая информация, не юридическая консультация по вашему конкретному
+  случаю. Для сложных или спорных ситуаций рекомендуем обратиться к юристу."
+  2) "Обратитесь в поддержку — support@techstore.example — там оформят
+  возврат/замену и уточнят детали."
+- Если это только уточняющий вопрос (например, спрашиваешь дату покупки,
+  потому что без неё не можешь определить правило) — НЕ добавляй пока ни
+  дисклеймер, ни контакт поддержки, они появятся вместе с окончательным
+  ответом позже.
 """
 
-CLOSING_FOLLOWUP = """Это НЕ первое сообщение в разговоре — дисклеймер и контакт поддержки уже
-были показаны в первом ответе. НЕ повторяй их снова: ни фразу про "общую
-информацию, не юридическую консультацию", ни email поддержки. Просто отвечай
-на вопрос по существу, без этих двух фраз в конце.
+CLOSING_ALREADY_SHOWN = """Дисклеймер и контакт поддержки УЖЕ были показаны ранее в этом разговоре
+(смотри историю сообщений). НЕ повторяй их снова ни в каком виде — ни фразу
+про "общую информацию, не юридическую консультацию", ни email поддержки.
+Просто отвечай на вопрос по существу.
 """
 
 
-def build_system_prompt(is_first_message: bool) -> str:
+def build_system_prompt(is_first_message: bool, contact_already_shown: bool) -> str:
     today = datetime.now().strftime("%d.%m.%Y")
     greeting_instruction = GREETING_FIRST_MESSAGE if is_first_message else GREETING_FOLLOWUP
-    closing_instruction = CLOSING_FIRST_MESSAGE if is_first_message else CLOSING_FOLLOWUP
+    closing_instruction = CLOSING_ALREADY_SHOWN if contact_already_shown else CLOSING_NOT_SHOWN_YET
 
     return SYSTEM_PROMPT_TEMPLATE.format(
         today=today,
@@ -183,12 +189,16 @@ def chat():
         return jsonify({"error": "Пустой запрос."}), 400
 
     is_first_message = len(history) <= 1
+    contact_already_shown = any(
+        msg.get("role") == "assistant" and "support@techstore.example" in msg.get("content", "")
+        for msg in history
+    )
 
     try:
         response = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
-            system=build_system_prompt(is_first_message),
+            system=build_system_prompt(is_first_message, contact_already_shown),
             messages=history,
         )
     except anthropic.APIError as e:
