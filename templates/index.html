@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>TechStore — Поддержка</title>
+  <style>
+    body {
+      font-family: -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      background: #f5f5f5;
+    }
+    h1 { font-size: 20px; }
+    #chat {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      height: 400px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      border: 1px solid #ddd;
+    }
+    .msg { margin: 8px 0; padding: 8px 12px; border-radius: 10px; max-width: 80%; }
+    .user { background: #daf1ff; margin-left: auto; text-align: right; }
+    .assistant { background: #eee; }
+    form { display: flex; gap: 8px; }
+    input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    button { padding: 10px 16px; border: none; border-radius: 8px; background: #2563eb; color: white; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: default; }
+  </style>
+</head>
+<body>
+  <h1>💬 TechStore — ассистент поддержки</h1>
+  <div id="chat"></div>
+  <form id="form">
+    <input id="input" type="text" placeholder="Спроси про доставку, возврат, гарантию..." autocomplete="off" />
+    <button type="submit">Отправить</button>
+  </form>
+
+  <script>
+    const chatEl = document.getElementById("chat");
+    const formEl = document.getElementById("form");
+    const inputEl = document.getElementById("input");
+
+    let history = [];
+
+    function addMessage(role, text) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.textContent = text;
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      addMessage("user", text);
+      history.push({ role: "user", content: text });
+      inputEl.value = "";
+      inputEl.disabled = true;
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ history }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          addMessage("assistant", "Ошибка: " + data.error);
+        } else {
+          addMessage("assistant", data.reply);
+          history.push({ role: "assistant", content: data.reply });
+        }
+      } catch (err) {
+        addMessage("assistant", "Не удалось связаться с сервером.");
+      } finally {
+        inputEl.disabled = false;
+        inputEl.focus();
+      }
+    });
+  </script>
+</body>
+</html>
